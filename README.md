@@ -12,6 +12,19 @@ It supports:
 - full purge (`purge_everything`)
 - targeted purge by `files`, `tags`, `hosts`, `prefixes`
 
+## Why choose this action
+
+- Pure Bash implementation with minimal dependencies (`bash`, plus `curl` and `jq` for the API call).
+- Fast startup: no `npm`/`pip` install step during workflow execution.
+- Lower supply-chain and maintenance overhead: no runtime pinning, lockfiles, or dependency CVEs.
+- Easier security audit: all logic lives in a small, readable script.
+- Covered by automated tests (`./tests/run`) and CI.
+- Works on `ubuntu-slim`, which can help reduce runner costs:
+  https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+- Can be used both as a GitHub Action and as a standalone script.
+- Released under the MIT License: a short and simple permissive license.
+- Documented security policy: [SECURITY.md](./SECURITY.md).
+
 ## Inputs
 
 | Input | Description | Required | Default |
