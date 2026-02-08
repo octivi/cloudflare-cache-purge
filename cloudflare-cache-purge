@@ -40,7 +40,7 @@ Options:
   --prefixes prefix...  Purge Cached Content by Prefix
   -h, --help            Show this help message
 
-Values may be separated by space or comma, e.g. `--files url1,url2` or `--files url1 url2`.
+Values may be separated by space or comma, e.g. '--files url1,url2' or '--files url1 url2'.
 
 Cloudflare's documentation on cache purging: https://developers.cloudflare.com/cache/how-to/purge-cache/
 Cloudflare's API documentation on cache purging: https://developers.cloudflare.com/api/resources/cache/methods/purge/
