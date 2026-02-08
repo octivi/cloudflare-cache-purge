@@ -1,0 +1,323 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2025-2026  IMAGIN sp. z o.o.
+# SPDX-FileContributor: Marcin Engelmann <mengelmann@octivi.com>
+# SPDX-License-Identifier: MIT
+#
+# This file is part of the configuration created by Octivi's DevOps team.
+# Details at https://octivi.com/devops
+
+# Octivi Bash Boilerplate (OBB) Header
+# Part of Octivi Bash Boilerplate https://github.com/octivi/bash-boilerplate
+################################################################################
+# Unofficial Bash "Strict Mode"
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/
+set -euo pipefail
+# Define common constants regardless if they are used in the script
+__my_name="$(basename "${BASH_SOURCE[0]}")"
+readonly __my_name
+__my_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly __my_dir
+__my_path="${__my_dir}/${__my_name}"
+# shellcheck disable=SC2034
+readonly __my_path
+__my_args="$*"
+# shellcheck disable=SC2034
+readonly __my_args
+# Set IFS to just newline and tab
+IFS=$'\n\t'
+################################################################################
+
+CLOUDFLARE_CACHE_PURGE="$(cd "${__my_dir}/.." && pwd)/cloudflare-cache-purge"
+ORIGINAL_PATH="${PATH}"
+
+TMP_DIRS=()
+CAPTURED_OUTPUT=""
+CAPTURED_STATUS=0
+
+cleanup() {
+  local dir
+  for dir in "${TMP_DIRS[@]}"; do
+    [[ -n "${dir}" ]] && rm -rf "${dir}"
+  done
+}
+
+trap cleanup EXIT
+
+fail() {
+  echo "FAIL: $*" 1>&2
+  exit 1
+}
+
+assert_equal() {
+  local actual="$1"
+  local expected="$2"
+  if [[ "${actual}" != "${expected}" ]]; then
+    echo "Expected: ${expected}" 1>&2
+    echo "Actual:   ${actual}" 1>&2
+    fail "assert_equal"
+  fi
+}
+
+assert_str_contains() {
+  local haystack="$1"
+  local expected="$2"
+  if [[ "${haystack}" != *"${expected}"* ]]; then
+    echo "Expected to find: ${expected}" 1>&2
+    echo "In output:" 1>&2
+    echo "${haystack}" 1>&2
+    fail "assert_str_contains"
+  fi
+}
+
+assert_json_equal() {
+  local actual="$1"
+  local expected="$2"
+  local actual_normalized
+  local expected_normalized
+  actual_normalized="$(printf '%s' "${actual}" | jq -S -c .)"
+  expected_normalized="$(printf '%s' "${expected}" | jq -S -c .)"
+  if [[ "${actual_normalized}" != "${expected_normalized}" ]]; then
+    echo "Expected JSON: ${expected_normalized}" 1>&2
+    echo "Actual JSON:   ${actual_normalized}" 1>&2
+    fail "assert_json_equal"
+  fi
+}
+
+run_and_capture() {
+  local out
+  local status
+  set +e
+  out="$("$@" 2>&1)"
+  status=$?
+  set -e
+  CAPTURED_OUTPUT="${out}"
+  CAPTURED_STATUS=${status}
+}
+
+make_tmp() {
+  local dir
+  dir="$(mktemp -d)"
+  TMP_DIRS+=("${dir}")
+  printf "%s\n" "${dir}"
+}
+
+run_test() {
+  local name="$1"
+  shift
+  echo "==> ${name}"
+  "$@"
+}
+
+setup_mock_curl() {
+  local tmp="$1"
+  mkdir -p "${tmp}/bin"
+  cat <<'SCRIPT' > "${tmp}/bin/curl"
+#!/usr/bin/env bash
+set -euo pipefail
+
+dump_header=""
+output=""
+write_out=""
+method=""
+url=""
+data=""
+headers=()
+
+while (($#)); do
+  case "$1" in
+    --dump-header)
+      dump_header="$2"
+      shift 2
+      ;;
+    --output)
+      output="$2"
+      shift 2
+      ;;
+    --request)
+      method="$2"
+      shift 2
+      ;;
+    --url)
+      url="$2"
+      shift 2
+      ;;
+    --data)
+      data="$2"
+      shift 2
+      ;;
+    --header)
+      headers+=("$2")
+      shift 2
+      ;;
+    -w)
+      write_out="$2"
+      shift 2
+      ;;
+    --disable|--silent|--show-error|--location)
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+[[ -n "${MOCK_CURL_LOG:-}" ]] || {
+  echo "MOCK_CURL_LOG is not set" >&2
+  exit 1
+}
+
+{
+  printf 'METHOD=%s\n' "${method}"
+  printf 'URL=%s\n' "${url}"
+  printf 'DATA=%s\n' "${data}"
+  for header in "${headers[@]}"; do
+    printf 'HEADER=%s\n' "${header}"
+  done
+} >> "${MOCK_CURL_LOG}"
+
+printf 'HTTP/1.1 %s mock\n' "${MOCK_CURL_STATUS:-200}" > "${dump_header}"
+default_body='{"success":true,"errors":[]}'
+printf '%s' "${MOCK_CURL_BODY:-${default_body}}" > "${output}"
+
+if [[ "${write_out}" == *"%{http_code}"* ]]; then
+  printf '%s' "${MOCK_CURL_STATUS:-200}"
+fi
+
+exit "${MOCK_CURL_EXIT_CODE:-0}"
+SCRIPT
+  chmod +x "${tmp}/bin/curl"
+}
+
+read_last_data_payload() {
+  local log_file="$1"
+  sed -n 's/^DATA=//p' "${log_file}" | tail -n1
+}
+
+test_help() {
+  run_and_capture "${CLOUDFLARE_CACHE_PURGE}" --help
+  assert_equal "${CAPTURED_STATUS}" "0"
+  assert_str_contains "${CAPTURED_OUTPUT}" "Usage:"
+}
+
+test_requires_token() {
+  run_and_capture env CLOUDFLARE_ZONE_ID="zone-1" "${CLOUDFLARE_CACHE_PURGE}"
+  assert_equal "${CAPTURED_STATUS}" "1"
+  assert_str_contains "${CAPTURED_OUTPUT}" "CLOUDFLARE_TOKEN is not set"
+}
+
+test_requires_zone_id() {
+  run_and_capture env CLOUDFLARE_TOKEN="token-1" "${CLOUDFLARE_CACHE_PURGE}"
+  assert_equal "${CAPTURED_STATUS}" "1"
+  assert_str_contains "${CAPTURED_OUTPUT}" "CLOUDFLARE_ZONE_ID is not set"
+}
+
+test_purge_everything_payload() {
+  local tmp
+  local payload
+  tmp="$(make_tmp)"
+  setup_mock_curl "${tmp}"
+
+  : > "${tmp}/curl.log"
+  PATH="${tmp}/bin:${ORIGINAL_PATH}" \
+  MOCK_CURL_LOG="${tmp}/curl.log" \
+  CLOUDFLARE_TOKEN="token-1" \
+  CLOUDFLARE_ZONE_ID="zone-1" \
+  "${CLOUDFLARE_CACHE_PURGE}" >/dev/null
+
+  payload="$(read_last_data_payload "${tmp}/curl.log")"
+  assert_json_equal "${payload}" '{"purge_everything":true}'
+}
+
+test_targeted_payload_from_env() {
+  local tmp
+  local payload
+  tmp="$(make_tmp)"
+  setup_mock_curl "${tmp}"
+
+  : > "${tmp}/curl.log"
+  PATH="${tmp}/bin:${ORIGINAL_PATH}" \
+  MOCK_CURL_LOG="${tmp}/curl.log" \
+  CLOUDFLARE_TOKEN="token-1" \
+  CLOUDFLARE_ZONE_ID="zone-1" \
+  FILES="https://example.com,https://example.com/app.js" \
+  TAGS="release-1 release-2" \
+  HOSTS="example.com" \
+  PREFIXES="example.com/static,example.com/assets" \
+  "${CLOUDFLARE_CACHE_PURGE}" >/dev/null
+
+  payload="$(read_last_data_payload "${tmp}/curl.log")"
+  assert_json_equal "${payload}" \
+    '{"files":["https://example.com","https://example.com/app.js"],"tags":["release-1","release-2"],"hosts":["example.com"],"prefixes":["example.com/static","example.com/assets"]}'
+}
+
+test_cli_overrides_env_values() {
+  local tmp
+  local payload
+  tmp="$(make_tmp)"
+  setup_mock_curl "${tmp}"
+
+  : > "${tmp}/curl.log"
+  PATH="${tmp}/bin:${ORIGINAL_PATH}" \
+  MOCK_CURL_LOG="${tmp}/curl.log" \
+  CLOUDFLARE_TOKEN="token-1" \
+  CLOUDFLARE_ZONE_ID="zone-1" \
+  FILES="https://old.example.com" \
+  "${CLOUDFLARE_CACHE_PURGE}" \
+    --files https://new.example.com https://new.example.com/app.js,https://new.example.com/app.css \
+    --tags tag1,tag2 tag3 >/dev/null
+
+  payload="$(read_last_data_payload "${tmp}/curl.log")"
+  assert_json_equal "${payload}" \
+    '{"files":["https://new.example.com","https://new.example.com/app.js","https://new.example.com/app.css"],"tags":["tag1","tag2","tag3"]}'
+}
+
+test_http_error() {
+  local tmp
+  tmp="$(make_tmp)"
+  setup_mock_curl "${tmp}"
+
+  run_and_capture env \
+    PATH="${tmp}/bin:${ORIGINAL_PATH}" \
+    MOCK_CURL_LOG="${tmp}/curl.log" \
+    MOCK_CURL_STATUS="403" \
+    MOCK_CURL_BODY='{"success":false,"errors":[{"message":"forbidden"}]}' \
+    CLOUDFLARE_TOKEN="token-1" \
+    CLOUDFLARE_ZONE_ID="zone-1" \
+    "${CLOUDFLARE_CACHE_PURGE}"
+
+  assert_equal "${CAPTURED_STATUS}" "1"
+  assert_str_contains "${CAPTURED_OUTPUT}" "HTTP 403"
+  assert_str_contains "${CAPTURED_OUTPUT}" "forbidden"
+}
+
+test_cli_unknown_option() {
+  run_and_capture env CLOUDFLARE_TOKEN="token-1" CLOUDFLARE_ZONE_ID="zone-1" "${CLOUDFLARE_CACHE_PURGE}" --nope
+  assert_equal "${CAPTURED_STATUS}" "1"
+  assert_str_contains "${CAPTURED_OUTPUT}" "Unknown option: --nope"
+}
+
+test_cli_missing_value() {
+  run_and_capture env CLOUDFLARE_TOKEN="token-1" CLOUDFLARE_ZONE_ID="zone-1" "${CLOUDFLARE_CACHE_PURGE}" --files --tags t1
+  assert_equal "${CAPTURED_STATUS}" "1"
+  assert_str_contains "${CAPTURED_OUTPUT}" "Missing value for --files"
+}
+
+main() {
+  [[ -x "${CLOUDFLARE_CACHE_PURGE}" ]] || fail "Script not executable: ${CLOUDFLARE_CACHE_PURGE}"
+  command -v jq >/dev/null || fail "jq not installed"
+
+  run_test "help" test_help
+  run_test "requires token" test_requires_token
+  run_test "requires zone id" test_requires_zone_id
+  run_test "purge everything payload" test_purge_everything_payload
+  run_test "targeted payload from env" test_targeted_payload_from_env
+  run_test "cli overrides env values" test_cli_overrides_env_values
+  run_test "http error handling" test_http_error
+  run_test "cli unknown option" test_cli_unknown_option
+  run_test "cli missing value" test_cli_missing_value
+
+  echo "All tests passed."
+}
+
+main "$@"

@@ -1,0 +1,240 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2025-2026  IMAGIN sp. z o.o.
+# SPDX-FileContributor: Marcin Engelmann <mengelmann@octivi.com>
+# SPDX-License-Identifier: MIT
+#
+# This file is part of the configuration created by Octivi's DevOps team.
+# Details at https://octivi.com/devops
+#
+# Purge Cloudflare cache using the Cloudflare API.
+
+# Octivi Bash Boilerplate (OBB) Header
+# Part of Octivi Bash Boilerplate https://github.com/octivi/bash-boilerplate
+################################################################################
+# Unofficial Bash "Strict Mode"
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/
+set -euo pipefail
+# Define common constants regardless if they are used in the script
+__my_name="$(basename "${BASH_SOURCE[0]}")"
+readonly __my_name
+__my_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly __my_dir
+__my_path="${__my_dir}/${__my_name}"
+# shellcheck disable=SC2034
+readonly __my_path
+__my_args="$*"
+# shellcheck disable=SC2034
+readonly __my_args
+# Set IFS to just newline and tab
+IFS=$'\n\t'
+################################################################################
+
+usage() {
+  cat <<USAGE
+Usage: ${__my_name} [--files url...] [--tags tag...] [--hosts host...] [--prefixes prefix...] [--help|-h]
+
+Options:
+  --files url...        Purge Cached Content by URL
+  --tags tag...         Purge Cached Content by Tag
+  --hosts host...       Purge Cached Content by Host
+  --prefixes prefix...  Purge Cached Content by Prefix
+  -h, --help            Show this help message
+
+Values may be separated by space or comma, e.g. `--files url1,url2` or `--files url1 url2`.
+
+Cloudflare's documentation on cache purging: https://developers.cloudflare.com/cache/how-to/purge-cache/
+Cloudflare's API documentation on cache purging: https://developers.cloudflare.com/api/resources/cache/methods/purge/
+USAGE
+}
+
+die() {
+  echo "ERROR: $*" 1>&2
+  exit 1
+}
+
+append_values() {
+  local target_array_name="$1"
+  local raw_values="$2"
+  local normalized
+  local token
+  local -n target_array="${target_array_name}"
+
+  normalized="${raw_values//,/ }"
+  IFS=$' \n\t' read -r -a tokens <<< "${normalized}"
+  for token in "${tokens[@]}"; do
+    [[ -n "${token//[[:space:]]/}" ]] || continue
+    target_array+=("${token}")
+  done
+}
+
+array_to_json() {
+  local source_array_name="$1"
+  local -n source_array="${source_array_name}"
+  if ((${#source_array[@]} == 0)); then
+    printf '[]'
+    return
+  fi
+  printf '%s\n' "${source_array[@]}" | jq -R . | jq -s .
+}
+
+FILES="${FILES:-}"
+TAGS="${TAGS:-}"
+HOSTS="${HOSTS:-}"
+PREFIXES="${PREFIXES:-}"
+
+declare -a FILES_LIST=()
+declare -a TAGS_LIST=()
+declare -a HOSTS_LIST=()
+declare -a PREFIXES_LIST=()
+
+append_values FILES_LIST "${FILES}"
+append_values TAGS_LIST "${TAGS}"
+append_values HOSTS_LIST "${HOSTS}"
+append_values PREFIXES_LIST "${PREFIXES}"
+
+files_cli_seen=false
+tags_cli_seen=false
+hosts_cli_seen=false
+prefixes_cli_seen=false
+
+while (($#)); do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --files|--tags|--hosts|--prefixes)
+      option="$1"
+      shift
+      if (($# == 0)) || [[ "$1" == -* ]]; then
+        die "Missing value for ${option}"
+      fi
+
+      case "${option}" in
+        --files)
+          if [[ "${files_cli_seen}" == false ]]; then
+            FILES_LIST=()
+            files_cli_seen=true
+          fi
+          target_array_name="FILES_LIST"
+          ;;
+        --tags)
+          if [[ "${tags_cli_seen}" == false ]]; then
+            TAGS_LIST=()
+            tags_cli_seen=true
+          fi
+          target_array_name="TAGS_LIST"
+          ;;
+        --hosts)
+          if [[ "${hosts_cli_seen}" == false ]]; then
+            HOSTS_LIST=()
+            hosts_cli_seen=true
+          fi
+          target_array_name="HOSTS_LIST"
+          ;;
+        --prefixes)
+          if [[ "${prefixes_cli_seen}" == false ]]; then
+            PREFIXES_LIST=()
+            prefixes_cli_seen=true
+          fi
+          target_array_name="PREFIXES_LIST"
+          ;;
+      esac
+
+      while (($#)); do
+        case "$1" in
+          --files|--tags|--hosts|--prefixes|-h|--help|--)
+            break
+            ;;
+          -*)
+            break
+            ;;
+        esac
+        append_values "${target_array_name}" "$1"
+        shift
+      done
+      continue
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      die "Unknown option: $1"
+      ;;
+  esac
+done
+
+if (($# > 0)); then
+  die "Unexpected arguments: $*"
+fi
+
+[[ -n "${CLOUDFLARE_TOKEN:-}" ]] || die "CLOUDFLARE_TOKEN is not set"
+[[ -n "${CLOUDFLARE_ZONE_ID:-}" ]] || die "CLOUDFLARE_ZONE_ID is not set"
+
+type -P curl >/dev/null || die "curl package not installed"
+type -P jq >/dev/null || die "jq package not installed"
+
+if ((${#FILES_LIST[@]} == 0 && ${#TAGS_LIST[@]} == 0 && ${#HOSTS_LIST[@]} == 0 && ${#PREFIXES_LIST[@]} == 0)); then
+  data='{"purge_everything":true}'
+else
+  files_json="$(array_to_json FILES_LIST)"
+  tags_json="$(array_to_json TAGS_LIST)"
+  hosts_json="$(array_to_json HOSTS_LIST)"
+  prefixes_json="$(array_to_json PREFIXES_LIST)"
+
+  data="$(jq -cn \
+    --argjson files "${files_json}" \
+    --argjson tags "${tags_json}" \
+    --argjson hosts "${hosts_json}" \
+    --argjson prefixes "${prefixes_json}" \
+    '
+      {}
+      + (if ($files | length) > 0 then {files: $files} else {} end)
+      + (if ($tags | length) > 0 then {tags: $tags} else {} end)
+      + (if ($hosts | length) > 0 then {hosts: $hosts} else {} end)
+      + (if ($prefixes | length) > 0 then {prefixes: $prefixes} else {} end)
+    '
+  )"
+fi
+
+command='purge_cache'
+method='POST'
+url="https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/${command}"
+tmp_body="$(mktemp)"
+tmp_hdr="$(mktemp)"
+
+cleanup_tmp() {
+  rm -f "${tmp_body}" "${tmp_hdr}"
+}
+trap cleanup_tmp EXIT
+
+http_status="$(curl \
+  --disable \
+  --url "${url}" \
+  --request "${method}" \
+  --header "Authorization: Bearer ${CLOUDFLARE_TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data "${data}" \
+  --dump-header "${tmp_hdr}" \
+  --output "${tmp_body}" \
+  --silent \
+  --show-error \
+  --location \
+  -w "%{http_code}" \
+)"
+
+if ((http_status < 200 || http_status >= 300)); then
+  {
+    echo "HTTP ${http_status} for ${method} ${url}"
+    echo "---- response body ----"
+    cat "${tmp_body}"
+    echo "---- response headers ----"
+    cat "${tmp_hdr}"
+  } >&2
+  exit 1
+fi
+
+echo "${method} ${command} for zone ${CLOUDFLARE_ZONE_ID}"
+jq < "${tmp_body}"
+echo

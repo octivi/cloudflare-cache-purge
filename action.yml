@@ -1,0 +1,49 @@
+---
+# SPDX-FileCopyrightText: 2025-2026  IMAGIN sp. z o.o.
+# SPDX-FileContributor: Marcin Engelmann <mengelmann@octivi.com>
+# SPDX-License-Identifier: MIT
+#
+# This file is part of the configuration created by Octivi's DevOps team.
+# Details at https://octivi.com/devops
+
+name: Purge Cloudflare Cache
+description: "Purges the cache of the website, which can be a helpful last step after deploying a new version."
+branding:
+  icon: cloud-lightning
+  color: orange
+inputs:
+  CLOUDFLARE_TOKEN:
+    description: "Cloudflare API token with cache purge permissions for the zone"
+    required: true
+  CLOUDFLARE_ZONE_ID:
+    description: "Cloudflare Zone ID for the website"
+    required: true
+  files:
+    description: "URLs to purge (space- or comma-separated)"
+    required: false
+    default: ""
+  tags:
+    description: "Cache tags to purge (space- or comma-separated)"
+    required: false
+    default: ""
+  hosts:
+    description: "Hostnames to purge (space- or comma-separated)"
+    required: false
+    default: ""
+  prefixes:
+    description: "URL prefixes to purge (space- or comma-separated)"
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Purge Cloudflare Cache
+      shell: bash
+      env:
+        CLOUDFLARE_TOKEN: ${{ inputs.CLOUDFLARE_TOKEN }}
+        CLOUDFLARE_ZONE_ID: ${{ inputs.CLOUDFLARE_ZONE_ID }}
+        FILES: ${{ inputs.files }}
+        TAGS: ${{ inputs.tags }}
+        HOSTS: ${{ inputs.hosts }}
+        PREFIXES: ${{ inputs.prefixes }}
+      run: ${{ github.action_path }}/cloudflare-cache-purge
