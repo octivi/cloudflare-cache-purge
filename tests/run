@@ -251,6 +251,25 @@ test_targeted_payload_from_env() {
     '{"files":["https://example.com","https://example.com/app.js"],"tags":["release-1","release-2"],"hosts":["example.com"],"prefixes":["example.com/static","example.com/assets"]}'
 }
 
+test_targeted_payload_from_multiline_env() {
+  local tmp
+  local payload
+  tmp="$(make_tmp)"
+  setup_mock_curl "${tmp}"
+
+  : > "${tmp}/curl.log"
+  PATH="${tmp}/bin:${ORIGINAL_PATH}" \
+  MOCK_CURL_LOG="${tmp}/curl.log" \
+  CLOUDFLARE_API_TOKEN="token-1" \
+  CLOUDFLARE_ZONE_ID="zone-1" \
+  FILES=$'https://example.com/file1.jpg\nhttps://example.com/file2.css' \
+  "${CLOUDFLARE_CACHE_PURGE}" >/dev/null
+
+  payload="$(read_last_data_payload "${tmp}/curl.log")"
+  assert_json_equal "${payload}" \
+    '{"files":["https://example.com/file1.jpg","https://example.com/file2.css"]}'
+}
+
 test_cli_overrides_env_values() {
   local tmp
   local payload
@@ -312,6 +331,7 @@ main() {
   run_test "requires zone id" test_requires_zone_id
   run_test "purge everything payload" test_purge_everything_payload
   run_test "targeted payload from env" test_targeted_payload_from_env
+  run_test "targeted payload from multiline env" test_targeted_payload_from_multiline_env
   run_test "cli overrides env values" test_cli_overrides_env_values
   run_test "http error handling" test_http_error
   run_test "cli unknown option" test_cli_unknown_option

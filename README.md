@@ -18,10 +18,10 @@ It supports:
 | --- | --- | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token with cache purge permissions for the zone. | Yes | - |
 | `CLOUDFLARE_ZONE_ID` | Cloudflare Zone ID. | Yes | - |
-| `files` | URLs to purge (space- or comma-separated). | No | `""` |
-| `tags` | Cache tags to purge (space- or comma-separated). | No | `""` |
-| `hosts` | Hostnames to purge (space- or comma-separated). | No | `""` |
-| `prefixes` | URL prefixes to purge (space- or comma-separated). | No | `""` |
+| `files` | URLs to purge (space-, comma- or newline-separated). | No | `""` |
+| `tags` | Cache tags to purge (space-, comma- or newline-separated). | No | `""` |
+| `hosts` | Hostnames to purge (space-, comma- or newline-separated). | No | `""` |
+| `prefixes` | URL prefixes to purge (space-, comma- or newline-separated). | No | `""` |
 
 If `files`, `tags`, `hosts` and `prefixes` are all empty, the action sends:
 `{"purge_everything": true}`.
@@ -98,7 +98,7 @@ CLOUDFLARE_ZONE_ID="..." \
 ```
 
 You can also set selectors via env vars: `FILES`, `TAGS`, `HOSTS`, `PREFIXES`.
-Values can be space-separated, comma-separated, or mixed.
+Values can be space-separated, comma-separated, newline-separated, or mixed.
 
 ## Tests
 

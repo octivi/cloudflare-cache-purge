@@ -19,19 +19,19 @@ inputs:
     description: "Cloudflare Zone ID for the website"
     required: true
   files:
-    description: "URLs to purge (space- or comma-separated)"
+    description: "URLs to purge (space-, comma- or newline-separated)"
     required: false
     default: ""
   tags:
-    description: "Cache tags to purge (space- or comma-separated)"
+    description: "Cache tags to purge (space-, comma- or newline-separated)"
     required: false
     default: ""
   hosts:
-    description: "Hostnames to purge (space- or comma-separated)"
+    description: "Hostnames to purge (space-, comma- or newline-separated)"
     required: false
     default: ""
   prefixes:
-    description: "URL prefixes to purge (space- or comma-separated)"
+    description: "URL prefixes to purge (space-, comma- or newline-separated)"
     required: false
     default: ""
 runs:

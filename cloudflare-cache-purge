@@ -31,16 +31,19 @@ IFS=$'\n\t'
 
 usage() {
   cat <<USAGE
-Usage: ${__my_name} [--files url...] [--tags tag...] [--hosts host...] [--prefixes prefix...] [--help|-h]
+Usage: ${__my_name} [--files files] [--tags tags] [--hosts hosts] [--prefixes prefixes] [--help|-h]
 
 Options:
-  --files url...        Purge Cached Content by URL
-  --tags tag...         Purge Cached Content by Tag
-  --hosts host...       Purge Cached Content by Host
-  --prefixes prefix...  Purge Cached Content by Prefix
-  -h, --help            Show this help message
+  --files files        Purge cached content by URL
+  --tags tags          Purge cached content by tag
+  --hosts hosts        Purge cached content by host
+  --prefixes prefixes  Purge cached content by prefix
+  -h, --help           Show this help message
 
-Values may be separated by space or comma, e.g. '--files url1,url2' or '--files url1 url2'.
+For list options, pass a single option-argument and separate items with spaces, commas,
+or newlines, for example:
+  --files "https://example.com/a.jpg https://example.com/b.css"
+  --tags "release-2026-02 release-2026-03"
 
 Cloudflare's documentation on cache purging: https://developers.cloudflare.com/cache/how-to/purge-cache/
 Cloudflare's API documentation on cache purging: https://developers.cloudflare.com/api/resources/cache/methods/purge/
@@ -57,9 +60,13 @@ append_values() {
   local raw_values="$2"
   local normalized
   local token
+  local -a tokens=()
   local -n target_array="${target_array_name}"
 
   normalized="${raw_values//,/ }"
+  normalized="${normalized//$'\r'/ }"
+  normalized="${normalized//$'\n'/ }"
+
   IFS=$' \n\t' read -r -a tokens <<< "${normalized}"
   for token in "${tokens[@]}"; do
     [[ -n "${token//[[:space:]]/}" ]] || continue
@@ -77,6 +84,7 @@ array_to_json() {
   printf '%s\n' "${source_array[@]}" | jq -R . | jq -s .
 }
 
+# Defaults (env overrides with fallbacks)
 FILES="${FILES:-}"
 TAGS="${TAGS:-}"
 HOSTS="${HOSTS:-}"
