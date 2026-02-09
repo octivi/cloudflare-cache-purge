@@ -14,29 +14,29 @@ It supports:
 
 ## Why choose this action
 
-- Pure Bash implementation with minimal dependencies (`bash`, plus `curl` and `jq` for the API call).
-- Fast startup: no `npm`/`pip` install step during workflow execution.
-- Lower supply-chain and maintenance overhead: no runtime pinning, lockfiles, or dependency CVEs.
-- Easier security audit: all logic lives in a small, readable script.
-- Covered by automated tests (`./tests/run`) and CI.
+- Pure Bash implementation with minimal dependencies (`bash`, plus `curl` and `jq` for the API call)
+- Fast startup: no `npm`/`pip` install step during workflow execution
+- Lower supply-chain and maintenance overhead: no runtime pinning, lockfiles, or dependency CVEs
+- Easier security audit: all logic lives in a small, readable script
+- Covered by automated tests (`./tests/run`) and CI
 - Works on `ubuntu-slim`, which can help reduce runner costs:
-  https://docs.github.com/en/actions/reference/runners/github-hosted-runners
-- Can be used both as a GitHub Action and as a standalone script.
-- Released under the MIT License: a short and simple permissive license.
-- Documented security policy: [SECURITY.md](./SECURITY.md).
+  <https://docs.github.com/en/actions/reference/runners/github-hosted-runners>
+- Can be used both as a GitHub Action and as a standalone script
+- Released under the MIT License: a short and simple permissive license
+- Documented security policy: [SECURITY.md](./SECURITY.md)
 
 ## Inputs
 
 | Input | Description | Required | Default |
 | --- | --- | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with cache purge permissions for the zone. | Yes | - |
-| `CLOUDFLARE_ZONE_ID` | Cloudflare Zone ID. | Yes | - |
-| `files` | URLs to purge (space-, comma- or newline-separated). | No | `""` |
-| `tags` | Cache tags to purge (space-, comma- or newline-separated). | No | `""` |
-| `hosts` | Hostnames to purge (space-, comma- or newline-separated). | No | `""` |
-| `prefixes` | URL prefixes to purge (space-, comma- or newline-separated). | No | `""` |
-| `dry_run` | If `true`, print planned request and skip API call. | No | `"false"` |
-| `verbose` | If `true`, print detailed logs. | No | `"false"` |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with cache purge permissions for the zone | Yes | - |
+| `CLOUDFLARE_ZONE_ID` | Cloudflare Zone ID | Yes | - |
+| `files` | URLs to purge (space-, comma- or newline-separated) | No | `""` |
+| `tags` | Cache tags to purge (space-, comma- or newline-separated) | No | `""` |
+| `hosts` | Hostnames to purge (space-, comma- or newline-separated) | No | `""` |
+| `prefixes` | URL prefixes to purge (space-, comma- or newline-separated) | No | `""` |
+| `dry_run` | If `true`, print planned request and skip API call | No | `"false"` |
+| `verbose` | If `true`, print detailed logs | No | `"false"` |
 
 If `files`, `tags`, `hosts` and `prefixes` are all empty, the action sends:
 `{"purge_everything": true}`.
@@ -57,9 +57,9 @@ Documentation:
 
 To copy your `Zone ID` in the Cloudflare dashboard:
 
-1. Go to **Account home** and locate your account.
-2. Open your account **Overview** page and find the **API** section near the bottom.
-3. Under **Zone ID**, click **Click to copy**.
+1. Go to **Account home** and locate your account
+2. Open your account **Overview** page and find the **API** section near the bottom
+3. Under **Zone ID**, click **Click to copy**
 
 Reference:
 
