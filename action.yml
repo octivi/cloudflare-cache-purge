@@ -6,7 +6,7 @@
 # This file is part of the configuration created by Octivi's DevOps team.
 # Details at https://octivi.com/devops
 
-name: Purge Cloudflare Cache
+name: Purge Cloudflare Zone Cache
 description: "Purges the cache of the website, which can be a helpful last step after deploying a new version."
 branding:
   icon: cloud-lightning
