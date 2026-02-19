@@ -162,6 +162,8 @@ If you are interested in other GitHub Actions we build, see:
 Maintained by the [Octivi DevOps team](https://octivi.com/devops). Contributions are welcome via
 pull requests.
 
+Built with [Octivi Bash Boilerplate](https://github.com/octivi/bash-boilerplate).
+
 ## Legal notice
 
 This project is not affiliated with, endorsed by, or sponsored by Cloudflare.

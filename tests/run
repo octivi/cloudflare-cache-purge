@@ -11,6 +11,7 @@
 #
 # Source code repository https://github.com/octivi/cloudflare-cache-purge
 
+# >>> OBB:BEGIN variant=header
 # Octivi Bash Boilerplate (OBB) Header
 # Part of Octivi Bash Boilerplate https://github.com/octivi/bash-boilerplate
 ################################################################################
@@ -31,6 +32,7 @@ readonly __my_args
 # Set IFS to just newline and tab
 IFS=$'\n\t'
 ################################################################################
+# <<< OBB:END
 
 CLOUDFLARE_CACHE_PURGE="$(cd "${__my_dir}/.." && pwd)/cloudflare-cache-purge"
 ORIGINAL_PATH="${PATH}"
