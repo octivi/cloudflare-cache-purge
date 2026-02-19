@@ -27,16 +27,16 @@ It supports:
 
 ## Inputs
 
-| Input | Description | Required | Default |
-| --- | --- | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with cache purge permissions for the zone | Yes | - |
-| `CLOUDFLARE_ZONE_ID` | Cloudflare Zone ID | Yes | - |
-| `files` | URLs to purge (space-, comma- or newline-separated) | No | `""` |
-| `tags` | Cache tags to purge (space-, comma- or newline-separated) | No | `""` |
-| `hosts` | Hostnames to purge (space-, comma- or newline-separated) | No | `""` |
-| `prefixes` | URL prefixes to purge (space-, comma- or newline-separated) | No | `""` |
-| `dry_run` | If `true`, print planned request and skip API call | No | `"false"` |
-| `verbose` | If `true`, print detailed logs | No | `"false"` |
+| Input                  | Description                                                    | Required | Default   |
+| ---------------------- | -------------------------------------------------------------- | -------- | --------- |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with cache purge permissions for the zone | Yes      | -         |
+| `CLOUDFLARE_ZONE_ID`   | Cloudflare Zone ID                                             | Yes      | -         |
+| `files`                | URLs to purge (space-, comma- or newline-separated)            | No       | `""`      |
+| `tags`                 | Cache tags to purge (space-, comma- or newline-separated)      | No       | `""`      |
+| `hosts`                | Hostnames to purge (space-, comma- or newline-separated)       | No       | `""`      |
+| `prefixes`             | URL prefixes to purge (space-, comma- or newline-separated)    | No       | `""`      |
+| `dry_run`              | If `true`, print planned request and skip API call             | No       | `"false"` |
+| `verbose`              | If `true`, print detailed logs                                 | No       | `"false"` |
 
 If `files`, `tags`, `hosts` and `prefixes` are all empty, the action sends:
 `{"purge_everything": true}`.
